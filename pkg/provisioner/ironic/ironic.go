@@ -412,7 +412,6 @@ func (p *ironicProvisioner) ValidateManagementAccess(credentialsChanged, force b
 				Name:                p.host.Name,
 				DriverInfo:          driverInfo,
 				DeployInterface:     p.deployInterface(),
-				InspectInterface:    "inspector",
 				ManagementInterface: p.bmcAccess.ManagementInterface(),
 				PowerInterface:      p.bmcAccess.PowerInterface(),
 				RAIDInterface:       p.bmcAccess.RAIDInterface(),
