@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/gophercloud/gophercloud/openstack/baremetal/v1/nodes"
-	"github.com/gophercloud/gophercloud/openstack/baremetalintrospection/v1/introspection"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/metal3-io/baremetal-operator/apis/metal3.io/v1alpha1"
@@ -91,17 +90,11 @@ func TestProvision(t *testing.T) {
 				defer tc.ironic.Stop()
 			}
 
-			inspector := testserver.NewInspector(t).Ready().WithIntrospection(nodeUUID, introspection.Introspection{
-				Finished: false,
-			})
-			inspector.Start()
-			defer inspector.Stop()
-
 			host := makeHost()
 			publisher := func(reason, message string) {}
 			auth := clients.AuthConfig{Type: clients.NoAuth}
 			prov, err := newProvisionerWithSettings(host, bmc.Credentials{}, publisher,
-				tc.ironic.Endpoint(), auth, inspector.Endpoint(), auth,
+				tc.ironic.Endpoint(), auth,
 			)
 			if err != nil {
 				t.Fatalf("could not create provisioner: %s", err)
@@ -225,17 +218,11 @@ func TestDeprovision(t *testing.T) {
 				defer tc.ironic.Stop()
 			}
 
-			inspector := testserver.NewInspector(t).Ready().WithIntrospection(nodeUUID, introspection.Introspection{
-				Finished: false,
-			})
-			inspector.Start()
-			defer inspector.Stop()
-
 			host := makeHost()
 			publisher := func(reason, message string) {}
 			auth := clients.AuthConfig{Type: clients.NoAuth}
 			prov, err := newProvisionerWithSettings(host, bmc.Credentials{}, publisher,
-				tc.ironic.Endpoint(), auth, inspector.Endpoint(), auth,
+				tc.ironic.Endpoint(), auth,
 			)
 			if err != nil {
 				t.Fatalf("could not create provisioner: %s", err)
@@ -357,12 +344,6 @@ func TestIronicHasSameImage(t *testing.T) {
 			ironic.Start()
 			defer ironic.Stop()
 
-			inspector := testserver.NewInspector(t).Ready().WithIntrospection(nodeUUID, introspection.Introspection{
-				Finished: false,
-			})
-			inspector.Start()
-			defer inspector.Stop()
-
 			var host v1alpha1.BareMetalHost
 			if tc.liveImage {
 				host = makeHostLiveIso()
@@ -376,7 +357,7 @@ func TestIronicHasSameImage(t *testing.T) {
 			publisher := func(reason, message string) {}
 			auth := clients.AuthConfig{Type: clients.NoAuth}
 			prov, err := newProvisionerWithSettings(host, bmc.Credentials{}, publisher,
-				ironic.Endpoint(), auth, inspector.Endpoint(), auth,
+				ironic.Endpoint(), auth,
 			)
 			if err != nil {
 				t.Fatalf("could not create provisioner: %s", err)

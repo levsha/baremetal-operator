@@ -4,23 +4,29 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strconv"
 	"strings"
 
+	"github.com/gophercloud/gophercloud/openstack/baremetal/v1/nodes"
 	"github.com/gophercloud/gophercloud/openstack/baremetalintrospection/v1/introspection"
 
 	metal3v1alpha1 "github.com/metal3-io/baremetal-operator/apis/metal3.io/v1alpha1"
 )
 
 // GetHardwareDetails converts Ironic introspection data into BareMetalHost HardwareDetails.
-func GetHardwareDetails(data *introspection.Data) *metal3v1alpha1.HardwareDetails {
+func GetHardwareDetails(node *nodes.Node) *metal3v1alpha1.HardwareDetails {
 	details := new(metal3v1alpha1.HardwareDetails)
-	details.Firmware = getFirmwareDetails(data.Extra.Firmware)
-	details.SystemVendor = getSystemVendorDetails(data.Inventory.SystemVendor)
-	details.RAMMebibytes = data.MemoryMB
-	details.NIC = getNICDetails(data.Inventory.Interfaces, data.AllInterfaces, data.Extra.Network)
-	details.Storage = getStorageDetails(data.Inventory.Disks)
-	details.CPU = getCPUDetails(&data.Inventory.CPU)
-	details.Hostname = data.Inventory.Hostname
+	// FIXME(levsha): Fetch the data from the conductor
+	//details.Firmware = getFirmwareDetails(data.Extra.Firmware)
+	//details.SystemVendor = getSystemVendorDetails(data.Inventory.SystemVendor)
+	if mem, err := strconv.Atoi(node.Properties["memory_mb"].(string)); err == nil {
+		details.RAMMebibytes = mem
+	}
+	//details.NIC = getNICDetails(data.Inventory.Interfaces, data.AllInterfaces, data.Extra.Network)
+	//details.Storage = getStorageDetails(data.Inventory.Disks)
+	//details.CPU = getCPUDetails(&data.Inventory.CPU)
+	//details.Hostname = data.Inventory.Hostname
+	details.Hostname = "fixme.levsha.does.not.exist" // FIXME(levsha): fill it properly or change the test.
 	return details
 }
 

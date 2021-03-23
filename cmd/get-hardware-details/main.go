@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gophercloud/gophercloud/openstack/baremetalintrospection/v1/introspection"
+	"github.com/gophercloud/gophercloud/openstack/baremetal/v1/nodes"
 
 	"github.com/metal3-io/baremetal-operator/pkg/provisioner/ironic/clients"
 	"github.com/metal3-io/baremetal-operator/pkg/provisioner/ironic/hardwaredetails"
@@ -34,22 +34,21 @@ func main() {
 		InsecureSkipVerify: ironicInsecure,
 	}
 
-	inspector, err := clients.InspectorClient(opts.Endpoint, opts.AuthConfig, tlsConf)
+	ironic, err := clients.IronicClient(opts.Endpoint, opts.AuthConfig, tlsConf)
 	if err != nil {
-		fmt.Printf("could not get inspector client: %s", err)
+		fmt.Printf("could not get ironic client: %s", err)
 		os.Exit(1)
 	}
 
-	introData := introspection.GetIntrospectionData(inspector, opts.NodeID)
-	data, err := introData.Extract()
+	ironicNode, err := nodes.Get(ironic, opts.NodeID).Extract()
 	if err != nil {
-		fmt.Printf("could not get introspection data: %s", err)
+		fmt.Printf("could not get node data: %s", err)
 		os.Exit(1)
 	}
 
-	json, err := json.MarshalIndent(hardwaredetails.GetHardwareDetails(data), "", "\t")
+	json, err := json.MarshalIndent(hardwaredetails.GetHardwareDetails(ironicNode), "", "\t")
 	if err != nil {
-		fmt.Printf("could not convert introspection data: %s", err)
+		fmt.Printf("could not convert node data: %s", err)
 		os.Exit(1)
 	}
 
@@ -58,7 +57,7 @@ func main() {
 
 func getOptions() (o options) {
 	if len(os.Args) != 3 {
-		fmt.Println("Usage: get-hardware-details <inspector URI> <node UUID>")
+		fmt.Println("Usage: get-hardware-details <ironic URI> <node UUID>")
 		os.Exit(1)
 	}
 

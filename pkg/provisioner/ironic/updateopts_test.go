@@ -21,7 +21,7 @@ func TestGetUpdateOptsForNodeWithRootHints(t *testing.T) {
 	auth := clients.AuthConfig{Type: clients.NoAuth}
 
 	prov, err := newProvisionerWithSettings(makeHost(), bmc.Credentials{}, eventPublisher,
-		"https://ironic.test", auth, "https://ironic.test", auth,
+		"https://ironic.test", auth,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -114,7 +114,7 @@ func TestGetUpdateOptsForNodeVirtual(t *testing.T) {
 	auth := clients.AuthConfig{Type: clients.NoAuth}
 
 	prov, err := newProvisionerWithSettings(host, bmc.Credentials{}, eventPublisher,
-		"https://ironic.test", auth, "https://ironic.test", auth,
+		"https://ironic.test", auth,
 	)
 	if err != nil {
 		t.Fatal(errors.Wrap(err, "could not create provisioner"))
@@ -218,7 +218,7 @@ func TestGetUpdateOptsForNodeDell(t *testing.T) {
 	auth := clients.AuthConfig{Type: clients.NoAuth}
 
 	prov, err := newProvisionerWithSettings(host, bmc.Credentials{}, eventPublisher,
-		"https://ironic.test", auth, "https://ironic.test", auth,
+		"https://ironic.test", auth,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -288,7 +288,7 @@ func TestGetUpdateOptsForNodeLiveIso(t *testing.T) {
 	auth := clients.AuthConfig{Type: clients.NoAuth}
 
 	prov, err := newProvisionerWithSettings(makeHostLiveIso(), bmc.Credentials{}, eventPublisher,
-		"https://ironic.test", auth, "https://ironic.test", auth,
+		"https://ironic.test", auth,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -349,7 +349,7 @@ func TestGetUpdateOptsForNodeImageToLiveIso(t *testing.T) {
 	auth := clients.AuthConfig{Type: clients.NoAuth}
 
 	prov, err := newProvisionerWithSettings(makeHostLiveIso(), bmc.Credentials{}, eventPublisher,
-		"https://ironic.test", auth, "https://ironic.test", auth,
+		"https://ironic.test", auth,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -429,7 +429,7 @@ func TestGetUpdateOptsForNodeLiveIsoToImage(t *testing.T) {
 	host.Spec.Image.Checksum = "thechecksum"
 	host.Spec.Image.ChecksumType = metal3v1alpha1.MD5
 	prov, err := newProvisionerWithSettings(host, bmc.Credentials{}, eventPublisher,
-		"https://ironic.test", auth, "https://ironic.test", auth,
+		"https://ironic.test", auth,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -533,7 +533,7 @@ func TestGetUpdateOptsForNodeSecureBoot(t *testing.T) {
 	auth := clients.AuthConfig{Type: clients.NoAuth}
 
 	prov, err := newProvisionerWithSettings(host, bmc.Credentials{}, eventPublisher,
-		"https://ironic.test", auth, "https://ironic.test", auth,
+		"https://ironic.test", auth,
 	)
 	if err != nil {
 		t.Fatal(errors.Wrap(err, "could not create provisioner"))

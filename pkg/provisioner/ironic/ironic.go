@@ -11,7 +11,6 @@ import (
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/baremetal/v1/nodes"
 	"github.com/gophercloud/gophercloud/openstack/baremetal/v1/ports"
-	"github.com/gophercloud/gophercloud/openstack/baremetalintrospection/v1/introspection"
 	"github.com/pkg/errors"
 	logz "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/yaml"
@@ -35,18 +34,15 @@ var (
 	deployKernelURL           string
 	deployRamdiskURL          string
 	ironicEndpoint            string
-	inspectorEndpoint         string
 	ironicTrustedCAFile       string
 	ironicInsecure            bool
 	ironicAuth                clients.AuthConfig
-	inspectorAuth             clients.AuthConfig
 	maxProvisioningHosts      int = 20
 
-	// Keep pointers to ironic and inspector clients configured with
+	// Keep pointers to ironic client configured with
 	// the global auth settings to reuse the connection between
 	// reconcilers.
-	clientIronicSingleton    *gophercloud.ServiceClient
-	clientInspectorSingleton *gophercloud.ServiceClient
+	clientIronicSingleton *gophercloud.ServiceClient
 )
 
 const (
@@ -81,7 +77,7 @@ func init() {
 	// logging, because logging is not configured yet in init().
 
 	var authErr error
-	ironicAuth, inspectorAuth, authErr = clients.LoadAuth()
+	ironicAuth, authErr = clients.LoadAuth()
 	if authErr != nil {
 		fmt.Fprintf(os.Stderr, "Cannot start: %s\n", authErr)
 		os.Exit(1)
@@ -100,11 +96,6 @@ func init() {
 	ironicEndpoint = os.Getenv("IRONIC_ENDPOINT")
 	if ironicEndpoint == "" {
 		fmt.Fprintf(os.Stderr, "Cannot start: No IRONIC_ENDPOINT variable set\n")
-		os.Exit(1)
-	}
-	inspectorEndpoint = os.Getenv("IRONIC_INSPECTOR_ENDPOINT")
-	if inspectorEndpoint == "" {
-		fmt.Fprintf(os.Stderr, "Cannot start: No IRONIC_INSPECTOR_ENDPOINT variable set\n")
 		os.Exit(1)
 	}
 	ironicTrustedCAFile = os.Getenv("IRONIC_CACERT_FILE")
@@ -153,8 +144,6 @@ func LogStartup() {
 	log.Info("ironic settings",
 		"endpoint", ironicEndpoint,
 		"ironicAuthType", ironicAuth.Type,
-		"inspectorEndpoint", inspectorEndpoint,
-		"inspectorAuthType", inspectorAuth.Type,
 		"deployKernelURL", deployKernelURL,
 		"deployRamdiskURL", deployRamdiskURL,
 	)
@@ -162,7 +151,7 @@ func LogStartup() {
 
 // A private function to construct an ironicProvisioner (rather than a
 // Provisioner interface) in a consistent way for tests.
-func newProvisionerWithSettings(host metal3v1alpha1.BareMetalHost, bmcCreds bmc.Credentials, publisher provisioner.EventPublisher, ironicURL string, ironicAuthSettings clients.AuthConfig, inspectorURL string, inspectorAuthSettings clients.AuthConfig) (*ironicProvisioner, error) {
+func newProvisionerWithSettings(host metal3v1alpha1.BareMetalHost, bmcCreds bmc.Credentials, publisher provisioner.EventPublisher, ironicURL string, ironicAuthSettings clients.AuthConfig) (*ironicProvisioner, error) {
 	tlsConf := clients.TLSConfig{
 		TrustedCAFile:      ironicTrustedCAFile,
 		InsecureSkipVerify: ironicInsecure,
@@ -172,16 +161,10 @@ func newProvisionerWithSettings(host metal3v1alpha1.BareMetalHost, bmcCreds bmc.
 		return nil, err
 	}
 
-	clientInspector, err := clients.InspectorClient(inspectorURL, inspectorAuthSettings, tlsConf)
-	if err != nil {
-		return nil, err
-	}
-
-	return newProvisionerWithIronicClients(host, bmcCreds, publisher,
-		clientIronic, clientInspector)
+	return newProvisionerWithIronicClients(host, bmcCreds, publisher, clientIronic)
 }
 
-func newProvisionerWithIronicClients(host metal3v1alpha1.BareMetalHost, bmcCreds bmc.Credentials, publisher provisioner.EventPublisher, clientIronic *gophercloud.ServiceClient, clientInspector *gophercloud.ServiceClient) (*ironicProvisioner, error) {
+func newProvisionerWithIronicClients(host metal3v1alpha1.BareMetalHost, bmcCreds bmc.Credentials, publisher provisioner.EventPublisher, clientIronic *gophercloud.ServiceClient) (*ironicProvisioner, error) {
 
 	bmcAccess, err := bmc.NewAccessDetails(host.Spec.BMC.Address, host.Spec.BMC.DisableCertificateVerification)
 	if err != nil {
@@ -197,7 +180,6 @@ func newProvisionerWithIronicClients(host metal3v1alpha1.BareMetalHost, bmcCreds
 		bmcAccess: bmcAccess,
 		bmcCreds:  bmcCreds,
 		client:    clientIronic,
-		inspector: clientInspector,
 		log:       log.WithValues("host", host.Name),
 		publisher: publisher,
 	}
@@ -209,7 +191,7 @@ func newProvisionerWithIronicClients(host metal3v1alpha1.BareMetalHost, bmcCreds
 // for finding the Ironic services.
 func New(host metal3v1alpha1.BareMetalHost, bmcCreds bmc.Credentials, publisher provisioner.EventPublisher) (provisioner.Provisioner, error) {
 	var err error
-	if clientIronicSingleton == nil || clientInspectorSingleton == nil {
+	if clientIronicSingleton == nil {
 		tlsConf := clients.TLSConfig{
 			TrustedCAFile:      ironicTrustedCAFile,
 			InsecureSkipVerify: ironicInsecure,
@@ -219,15 +201,8 @@ func New(host metal3v1alpha1.BareMetalHost, bmcCreds bmc.Credentials, publisher 
 		if err != nil {
 			return nil, err
 		}
-
-		clientInspectorSingleton, err = clients.InspectorClient(
-			inspectorEndpoint, inspectorAuth, tlsConf)
-		if err != nil {
-			return nil, err
-		}
 	}
-	return newProvisionerWithIronicClients(host, bmcCreds, publisher,
-		clientIronicSingleton, clientInspectorSingleton)
+	return newProvisionerWithIronicClients(host, bmcCreds, publisher, clientIronicSingleton)
 }
 
 func (p *ironicProvisioner) validateNode(ironicNode *nodes.Node) (errorMessage string, err error) {
@@ -649,84 +624,62 @@ func (p *ironicProvisioner) InspectHardware(force bool) (result provisioner.Resu
 		return
 	}
 
-	status, err := introspection.GetIntrospectionStatus(p.inspector, ironicNode.UUID).Extract()
-	if err != nil {
-		if _, isNotFound := err.(gophercloud.ErrDefault404); isNotFound {
-			switch nodes.ProvisionState(ironicNode.ProvisionState) {
-			case nodes.Inspecting, nodes.InspectWait:
-				p.log.Info("inspection already started")
-				result, err = operationContinuing(introspectionRequeueDelay)
-				return
-			default:
-				if nodes.ProvisionState(ironicNode.ProvisionState) == nodes.InspectFail && !force {
-					p.log.Info("starting inspection failed", "error", status.Error)
-					if ironicNode.LastError == "" {
-						result.ErrorMessage = "Inspection failed"
-					} else {
-						result.ErrorMessage = ironicNode.LastError
-					}
-					err = nil
-				}
-				p.log.Info("updating boot mode before hardware inspection")
-				op, value := buildCapabilitiesValue(ironicNode, p.host.Status.Provisioning.BootMode)
-				updates := nodes.UpdateOpts{
-					nodes.UpdateOperation{
-						Op:    op,
-						Path:  "/properties/capabilities",
-						Value: value,
-					},
-				}
-				_, err = nodes.Update(p.client, ironicNode.UUID, updates).Extract()
-				switch err.(type) {
-				case nil:
-				case gophercloud.ErrDefault409:
-					p.log.Info("could not update host settings in ironic, busy")
-					result, err = retryAfterDelay(provisionRequeueDelay)
-					return
-				default:
-					result, err = transientError(errors.Wrap(err, "failed to update host boot mode settings in ironic"))
-					return
-				}
-
-				p.log.Info("starting new hardware inspection")
-				var success bool
-				success, result, err = p.tryChangeNodeProvisionState(
-					ironicNode,
-					nodes.ProvisionStateOpts{Target: nodes.TargetInspect},
-				)
-				if success {
-					p.publisher("InspectionStarted", "Hardware inspection started")
-				}
-				return
-			}
-		}
-		result, err = transientError(errors.Wrap(err, "failed to extract hardware inspection status"))
-		return
-	}
-	if status.Error != "" {
-		p.log.Info("inspection failed", "error", status.Error)
-		result, err = operationFailed(status.Error)
-		return
-	}
-	if !status.Finished || (nodes.ProvisionState(ironicNode.ProvisionState) == nodes.Inspecting || nodes.ProvisionState(ironicNode.ProvisionState) == nodes.InspectWait) {
-		p.log.Info("inspection in progress", "started_at", status.StartedAt)
+	switch nodes.ProvisionState(ironicNode.ProvisionState) {
+	case nodes.Inspecting, nodes.InspectWait:
+		p.log.Info("inspection in progress")
 		result, err = operationContinuing(introspectionRequeueDelay)
 		return
+	case nodes.InspectFail:
+		if !force {
+			p.log.Info("inspection failed", "error", ironicNode.LastError)
+			if ironicNode.LastError == "" {
+				result.ErrorMessage = "Inspection failed"
+			} else {
+				result.ErrorMessage = ironicNode.LastError
+			}
+			err = nil
+		}
+	case nodes.Manageable:
+		if _, ok := ironicNode.Properties["memory_mb"]; ok { // TODO: Find an universal way to check inspection was done.
+
+			// Introspection is done
+			details = hardwaredetails.GetHardwareDetails(ironicNode)
+			p.publisher("InspectionComplete", "Hardware inspection completed")
+			result, err = operationComplete()
+			return
+		}
 	}
 
-	// Introspection is done
-	p.log.Info("getting hardware details from inspection")
-	introData := introspection.GetIntrospectionData(p.inspector, ironicNode.UUID)
-	data, err := introData.Extract()
-	if err != nil {
-		result, err = transientError(errors.Wrap(err, "failed to retrieve hardware introspection data"))
+	p.log.Info("updating boot mode before hardware inspection")
+	op, value := buildCapabilitiesValue(ironicNode, p.host.Status.Provisioning.BootMode)
+	updates := nodes.UpdateOpts{
+		nodes.UpdateOperation{
+			Op:    op,
+			Path:  "/properties/capabilities",
+			Value: value,
+		},
+	}
+	_, err = nodes.Update(p.client, ironicNode.UUID, updates).Extract()
+	switch err.(type) {
+	case nil:
+	case gophercloud.ErrDefault409:
+		p.log.Info("could not update host settings in ironic, busy")
+		result, err = retryAfterDelay(provisionRequeueDelay)
+		return
+	default:
+		result, err = transientError(errors.Wrap(err, "failed to update host boot mode settings in ironic"))
 		return
 	}
-	p.log.Info("received introspection data", "data", introData.Body)
 
-	details = hardwaredetails.GetHardwareDetails(data)
-	p.publisher("InspectionComplete", "Hardware inspection completed")
-	result, err = operationComplete()
+	p.log.Info("starting new hardware inspection")
+	var success bool
+	success, result, err = p.tryChangeNodeProvisionState(
+		ironicNode,
+		nodes.ProvisionStateOpts{Target: nodes.TargetInspect},
+	)
+	if success {
+		p.publisher("InspectionStarted", "Hardware inspection started")
+	}
 	return
 }
 

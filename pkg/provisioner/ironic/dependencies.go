@@ -31,10 +31,6 @@ func newIronicDependenciesChecker(client *gophercloud.ServiceClient, inspector *
 func (i *ironicDependenciesChecker) IsReady() (result bool, err error) {
 
 	ready, err := i.checkIronic()
-	if ready && err == nil {
-		ready = i.checkIronicInspector()
-	}
-
 	return ready, err
 }
 
@@ -85,8 +81,4 @@ func (i *ironicDependenciesChecker) checkIronicConductor() (ready bool, err erro
 	ready = driverCount > 0
 
 	return ready, err
-}
-
-func (i *ironicDependenciesChecker) checkIronicInspector() (ready bool) {
-	return i.checkEndpoint(i.inspector)
 }

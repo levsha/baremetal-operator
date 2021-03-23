@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/gophercloud/gophercloud/openstack/baremetal/v1/nodes"
-	"github.com/gophercloud/gophercloud/openstack/baremetalintrospection/v1/introspection"
 	"github.com/stretchr/testify/assert"
 
 	metal3v1alpha1 "github.com/metal3-io/baremetal-operator/apis/metal3.io/v1alpha1"
@@ -113,12 +112,6 @@ func TestPrepare(t *testing.T) {
 				defer tc.ironic.Stop()
 			}
 
-			inspector := testserver.NewInspector(t).Ready().WithIntrospection(nodeUUID, introspection.Introspection{
-				Finished: false,
-			})
-			inspector.Start()
-			defer inspector.Stop()
-
 			host := makeHost()
 			if tc.existRaidConfig {
 				host.Spec.BMC.Address = "irmc://test.bmc/"
@@ -139,7 +132,7 @@ func TestPrepare(t *testing.T) {
 			publisher := func(reason, message string) {}
 			auth := clients.AuthConfig{Type: clients.NoAuth}
 			prov, err := newProvisionerWithSettings(host, bmc.Credentials{}, publisher,
-				tc.ironic.Endpoint(), auth, inspector.Endpoint(), auth,
+				tc.ironic.Endpoint(), auth,
 			)
 			if err != nil {
 				t.Fatalf("could not create provisioner: %s", err)

@@ -70,13 +70,9 @@ func load(clientType string) (auth AuthConfig, err error) {
 	return
 }
 
-// LoadAuth loads the Ironic and Inspector configuration from the environment
-func LoadAuth() (ironicAuth, inspectorAuth AuthConfig, err error) {
+// LoadAuth loads the Ironic configuration from the environment
+func LoadAuth() (ironicAuth AuthConfig, err error) {
 	ironicAuth, err = load("ironic")
-	if err != nil {
-		return
-	}
-	inspectorAuth, err = load("ironic-inspector")
 	return
 }
 

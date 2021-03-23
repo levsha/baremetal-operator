@@ -1,3 +1,6 @@
+
+namespace: capm3-system
+
 resources:
 - role.yaml
 - role_binding.yaml

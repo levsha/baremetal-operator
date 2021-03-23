@@ -70,9 +70,6 @@ func TestHasProvisioningCapacity(t *testing.T) {
 			ironic := testserver.NewIronic(t).Nodes(allNodes).Start()
 			defer ironic.Stop()
 
-			inspector := testserver.NewInspector(t).Start()
-			defer inspector.Stop()
-
 			host := makeHost()
 			host.Name = tc.hostName
 
@@ -81,7 +78,7 @@ func TestHasProvisioningCapacity(t *testing.T) {
 			maxProvisioningHosts = tc.provisioningLimit
 
 			prov, err := newProvisionerWithSettings(host, bmc.Credentials{}, nullEventPublisher,
-				ironic.Endpoint(), auth, inspector.Endpoint(), auth,
+				ironic.Endpoint(), auth,
 			)
 			if err != nil {
 				t.Fatalf("could not create provisioner: %s", err)
