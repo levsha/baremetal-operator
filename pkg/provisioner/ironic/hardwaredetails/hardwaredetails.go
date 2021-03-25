@@ -2,8 +2,6 @@ package hardwaredetails
 
 import (
 	"fmt"
-	"math"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -13,18 +11,20 @@ import (
 	metal3v1alpha1 "github.com/metal3-io/baremetal-operator/apis/metal3.io/v1alpha1"
 )
 
-// GetHardwareDetails converts Ironic introspection data into BareMetalHost HardwareDetails.
+// GetHardwareDetails converts node properties into BareMetalHost HardwareDetails.
 func GetHardwareDetails(node *nodes.Node) *metal3v1alpha1.HardwareDetails {
 	details := new(metal3v1alpha1.HardwareDetails)
 	// FIXME(levsha): Fetch the data from the conductor
 	//details.Firmware = getFirmwareDetails(data.Extra.Firmware)
 	//details.SystemVendor = getSystemVendorDetails(data.Inventory.SystemVendor)
-	if mem, err := strconv.Atoi(node.Properties["memory_mb"].(string)); err == nil {
-		details.RAMMebibytes = mem
+	if field, ok := node.Properties["memory_mb"]; ok {
+		if mem, err := strconv.Atoi(field.(string)); err == nil {
+			details.RAMMebibytes = mem
+		}
 	}
 	//details.NIC = getNICDetails(data.Inventory.Interfaces, data.AllInterfaces, data.Extra.Network)
 	//details.Storage = getStorageDetails(data.Inventory.Disks)
-	//details.CPU = getCPUDetails(&data.Inventory.CPU)
+	details.CPU = getCPUDetails(node)
 	//details.Hostname = data.Inventory.Hostname
 	details.Hostname = "fixme.levsha.does.not.exist" // FIXME(levsha): fill it properly or change the test.
 	return details
@@ -128,20 +128,16 @@ func getSystemVendorDetails(vendor introspection.SystemVendorType) metal3v1alpha
 	}
 }
 
-func getCPUDetails(cpudata *introspection.CPUType) metal3v1alpha1.CPU {
-	var freq float64
-	fmt.Sscanf(cpudata.Frequency, "%f", &freq)
-	freq = math.Round(freq) // Ensure freq has no fractional part
-	sort.Strings(cpudata.Flags)
-	cpu := metal3v1alpha1.CPU{
-		Arch:           cpudata.Architecture,
-		Model:          cpudata.ModelName,
-		ClockMegahertz: metal3v1alpha1.ClockSpeed(freq) * metal3v1alpha1.MegaHertz,
-		Count:          cpudata.Count,
-		Flags:          cpudata.Flags,
+func getCPUDetails(node *nodes.Node) (cpu metal3v1alpha1.CPU) {
+	if arch, ok := node.Properties["cpu_arch"]; ok {
+		cpu.Arch = arch.(string)
 	}
-
-	return cpu
+	if field, ok := node.Properties["cpus"]; ok {
+		if cpus, err := strconv.Atoi(field.(string)); err == nil {
+			cpu.Count = cpus
+		}
+	}
+	return
 }
 
 func getFirmwareDetails(firmwaredata introspection.ExtraHardwareDataSection) metal3v1alpha1.Firmware {
