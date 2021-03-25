@@ -133,8 +133,17 @@ func getCPUDetails(node *nodes.Node) (cpu metal3v1alpha1.CPU) {
 		cpu.Arch = arch.(string)
 	}
 	if field, ok := node.Properties["cpus"]; ok {
-		if cpus, err := strconv.Atoi(field.(string)); err == nil {
-			cpu.Count = cpus
+		switch v := field.(type) {
+		case int:
+			cpu.Count = v
+		case float64:
+			cpu.Count = int(v)
+		case string:
+			if cpus, err := strconv.Atoi(v); err == nil {
+				cpu.Count = cpus
+			}
+		default:
+			panic(fmt.Sprintf("Can't convert value type %T to cpu.Count!\n", v))
 		}
 	}
 	return
